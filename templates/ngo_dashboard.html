@@ -1,0 +1,341 @@
+{% extends 'base.html' %}{% block content %}
+
+<div class="dash-header ngo-dash-header">
+  <div>
+    <p class="eyebrow">NGO Dashboard</p>
+    <h1>Hello, {{ session.get('name','') }} 👋</h1>
+    <p class="dash-sub">Accept donations, track runners live, verify with OTP codes.</p>
+  </div>
+  <div class="dash-header-actions">
+    <a class="btn-contact-us" href="{{ url_for('support.contact') }}">📩 Contact Us</a>
+  </div>
+</div>
+
+<div class="stats-row">
+  <div class="stat-card stat-total"><div class="stat-val">{{ available|length }}</div><div class="stat-lbl">Available</div></div>
+  <div class="stat-card stat-active"><div class="stat-val">{{ accepted|length }}</div><div class="stat-lbl">Active</div></div>
+  <div class="stat-card stat-delivered"><div class="stat-val">{{ history|length }}</div><div class="stat-lbl">Delivered</div></div>
+</div>
+
+{% if no_runner_alert %}
+<div class="alert-banner">
+  ⚠️ <b>No runner accepted</b> for {{ no_runner_alert|length }} donation(s) — 10 min passed!
+  {% for d in no_runner_alert %}
+  <form method="post" action="{{ url_for('ngo.set_collection', donation_id=d._id) }}" style="display:inline">
+    <input type="hidden" name="collection_type" value="self">
+    <button class="btn-sm-orange">Switch to Self-Pickup: {{ d.food_type }}</button>
+  </form>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="showTab('availTab',this)">🍱 Available</button>
+  <button class="tab-btn" onclick="showTab('activeTab',this)">🚚 Active</button>
+  <button class="tab-btn" onclick="showTab('ngoHistTab',this)">📋 History</button>
+</div>
+
+<!-- AVAILABLE -->
+<div id="availTab" class="tab-panel">
+  {% if available %}{% for d in available %}
+  <div class="listing-card listing-available">
+    <div class="lc-header">
+      <div class="lc-title">{% if d.get('food_items') %}{% for fi in d.food_items %}<span class="food-tag">{{ fi.name }} × {{ fi.quantity }} {{ fi.unit }}</span>{% endfor %}{% else %}<span class="food-tag">{{ d.food_type }} × {{ d.quantity }} {{ d.get('unit','portions') }}</span>{% endif %}</div>
+      <span class="status-pill status-available">Available</span>
+    </div>
+    {% if d.get('order_id') %}<div class="order-id-badge">🆔 Order ID: <b>{{ d.order_id }}</b></div>{% endif %}
+    {% if d.get('food_image') %}<img src="{{ url_for('static', filename=d.food_image) }}" class="food-photo">{% endif %}
+    <div class="lc-meta">
+      <span>🏪 {{ d.restaurant_name }}</span>
+      <span>📍 {{ d.location }}</span>
+      {% if d.get('distance_km') is not none %}<span>📏 {{ d.distance_km }} km away</span>{% endif %}
+      {% if d.get('expires_at') %}<span class="timer-badge" data-expires="{{ d.expires_at.isoformat() }}">⏱ ...</span>{% endif %}
+      {% if d.get('notes') %}<span>📝 {{ d.notes }}</span>{% endif %}
+    </div>
+    {% if d.get('latitude') and d.latitude != 0 %}
+    <div id="m_avail_{{ d._id }}" style="height:160px;border-radius:12px;margin:10px 0;overflow:hidden;"></div>
+    <script>document.addEventListener('DOMContentLoaded',function(){initMap('m_avail_{{ d._id }}',{{ d.latitude }},{{ d.longitude }},'🏪 {{ d.restaurant_name }}');});</script>
+    {% if d.get('maps_link') %}<a href="{{ d.maps_link }}" target="_blank" rel="noopener" class="btn-sm-green" style="display:inline-block;text-decoration:none;margin-bottom:8px">🧭 Open in Google Maps</a>{% endif %}
+    {% endif %}
+    <form method="post" action="{{ url_for('ngo.accept_donation', donation_id=d._id) }}" style="margin-top:12px">
+      <button class="btn-accept">✅ Accept Donation</button>
+    </form>
+  </div>
+  {% endfor %}{% else %}
+  <div class="empty-state"><div class="empty-icon">🍱</div><p>No donations available right now.</p></div>
+  {% endif %}
+</div>
+
+<!-- ACTIVE -->
+<div id="activeTab" class="tab-panel" style="display:none">
+  {% if accepted %}{% for d in accepted %}
+  <div class="listing-card listing-accepted">
+    <div class="lc-header">
+      <div class="lc-title">{% if d.get('food_items') %}{% for fi in d.food_items %}<span class="food-tag">{{ fi.name }} × {{ fi.quantity }} {{ fi.unit }}</span>{% endfor %}{% else %}<span class="food-tag">{{ d.food_type }} × {{ d.quantity }}</span>{% endif %}</div>
+      <span class="status-pill status-{{ d.status|lower|replace(' ','-') }}">{{ d.status }}</span>
+    </div>
+    {% if d.get('food_image') %}<img src="{{ url_for('static', filename=d.food_image) }}" class="food-photo">{% endif %}
+    <div class="lc-meta">
+      <span>🏪 {{ d.restaurant_name }}</span>
+      <span>📍 {{ d.location }}</span>
+      {% if d.get('distance_km') is not none %}<span>📏 {{ d.distance_km }} km away</span>{% endif %}
+      {% if d.get('expires_at') %}<span class="timer-badge" data-expires="{{ d.expires_at.isoformat() }}">⏱ ...</span>{% endif %}
+    </div>
+    {% if d.get('restaurant_phone') %}
+    <div class="collector-info">
+      <a href="tel:{{ d.restaurant_phone }}" class="collector-badge badge-phone">📞 Restaurant: {{ d.restaurant_phone }}</a>
+    </div>
+    {% endif %}
+
+    <!-- Restaurant pin map -->
+    {% if d.get('latitude') and d.latitude != 0 and not d.get('runner_id') %}
+    <div id="m_acc_{{ d._id }}" style="height:160px;border-radius:12px;margin:8px 0;overflow:hidden;"></div>
+    <script>document.addEventListener('DOMContentLoaded',function(){initMap('m_acc_{{ d._id }}',{{ d.latitude }},{{ d.longitude }},'🏪 {{ d.restaurant_name }}');});</script>
+    {% if d.get('maps_link') %}<a href="{{ d.maps_link }}" target="_blank" rel="noopener" class="btn-sm-green" style="display:inline-block;text-decoration:none;margin-bottom:8px">🧭 Directions in Google Maps</a>{% endif %}
+    {% endif %}
+
+    <!-- COLLECTION CHOICE -->
+    {% if not d.get('collection_type') %}
+    <div class="collection-choice-card">
+      <p class="choice-title">📦 How will you collect this food?</p>
+      <div class="choice-btns">
+        <form method="post" action="{{ url_for('ngo.set_collection', donation_id=d._id) }}">
+          <input type="hidden" name="collection_type" value="self">
+          <button class="btn-choice btn-choice-self">🏢 I'll collect myself</button>
+        </form>
+        <form method="post" action="{{ url_for('ngo.set_collection', donation_id=d._id) }}">
+          <input type="hidden" name="collection_type" value="runner">
+          <button class="btn-choice btn-choice-runner">🏃 Send a runner</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- SWIGGY/ZOMATO RUNNER TRACKER -->
+    {% if d.get('runner_id') %}
+    <div class="runner-tracker" id="tracker_{{ d._id }}">
+      <div class="tracker-header">
+        <div class="tracker-avatar">🏃</div>
+        <div class="tracker-info">
+          <div class="tracker-name">{{ d.runner_name }}</div>
+          {% if d.get('runner_phone') %}<a href="tel:{{ d.runner_phone }}" class="tracker-phone">📞 {{ d.runner_phone }}</a>{% endif %}
+        </div>
+        <div class="tracker-status-badge {{ 'pickedup' if d.status == 'Picked Up' else 'enroute' }}">
+          {{ '🍱 Food Picked Up' if d.status == 'Picked Up' else '🚗 En Route to Restaurant' }}
+        </div>
+      </div>
+      <div class="tracker-map-wrap">
+        <div id="rmap_{{ d._id }}" class="tracker-map-canvas"></div>
+        <div class="tracker-live-badge"><div class="live-dot"></div>LIVE</div>
+        <div class="tracker-legend">
+          <div><div class="legend-dot-rest"></div> Restaurant pickup</div>
+          <div><div class="legend-dot-runner"></div> Runner location</div>
+        </div>
+      </div>
+      <div class="tracker-footer">
+        <div class="tracker-eta" id="eta_{{ d._id }}">Fetching location...</div>
+        <button class="btn-refresh" onclick="refreshRunnerMap('{{ d._id }}','{{ d.runner_id }}',{{ d.get('latitude') or 0 }},{{ d.get('longitude') or 0 }})">🔄 Refresh</button>
+      </div>
+    </div>
+    <script>
+    document.addEventListener('DOMContentLoaded', function(){
+      initRunnerTracker('{{ d._id }}', '{{ d.runner_id }}', {{ d.get('latitude') or 0 }}, {{ d.get('longitude') or 0 }});
+    });
+    </script>
+    {% elif d.get('collection_type') == 'runner' %}
+    <div class="waiting-runner">
+      <div class="pulse-dot"></div>
+      <span>Waiting for a runner to accept this job...</span>
+    </div>
+    {% endif %}
+
+    <!-- OTP SECTION -->
+    {% if d.get('collection_type') == 'runner' and d.get('runner_id') %}
+    <div class="otp-card otp-delivery">
+      <div class="otp-label-text">🎯 Delivery OTP — Give to runner when food arrives</div>
+      {% if d.get('delivery_otp') %}
+        <div class="otp-digits">{{ d.delivery_otp }}</div>
+        <div class="otp-status-text">{{ '✅ Runner confirmed delivery!' if d.get('delivery_otp_verified') else '📱 Share this code when runner arrives at NGO' }}</div>
+      {% else %}
+        <button class="btn-gen-otp" onclick="genOtp('{{ d._id }}',this)">Generate Delivery OTP</button>
+      {% endif %}
+    </div>
+    <div class="otp-card otp-pickup-status">
+      <div class="otp-label-text">Pickup Status</div>
+      <div class="otp-status-text">{{ '✅ Runner picked up food from restaurant' if d.get('pickup_otp_verified') else '⏳ Waiting for runner to pick up' }}</div>
+    </div>
+    {% elif d.get('collection_type') == 'self' %}
+    <div class="otp-card otp-self">
+      <div class="otp-label-text">🔑 Your Pickup Code — Show to restaurant staff</div>
+      <div class="otp-digits">{{ d.get('delivery_otp','------') }}</div>
+      <div class="otp-status-text">{{ '✅ Verified!' if d.get('delivery_otp_verified') else '📱 Show this code at the restaurant to confirm pickup' }}</div>
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}{% else %}
+  <div class="empty-state"><div class="empty-icon">🚚</div><p>No active donations. Accept one above!</p></div>
+  {% endif %}
+</div>
+
+<!-- HISTORY -->
+<div id="ngoHistTab" class="tab-panel" style="display:none">
+  {% if history %}{% for d in history %}
+  <div class="listing-card listing-delivered">
+    <div class="lc-header">
+      <div class="lc-title">{% if d.get('food_items') %}{% for fi in d.food_items %}<span class="food-tag">{{ fi.name }} × {{ fi.quantity }} {{ fi.unit }}</span>{% endfor %}{% else %}<span class="food-tag">{{ d.food_type }} × {{ d.quantity }}</span>{% endif %}</div>
+      <span class="status-pill status-delivered">✅ Delivered</span>
+    </div>
+    {% if d.get('food_image') %}<img src="{{ url_for('static', filename=d.food_image) }}" class="food-photo">{% endif %}
+    <div class="lc-meta">
+      <span>🏪 {{ d.restaurant_name }}</span>
+      <span>📍 {{ d.location }}</span>
+      <span>📅 {{ d.updated_at.strftime('%d %b %Y, %I:%M %p') if d.get('updated_at') else '' }}</span>
+    </div>
+    <div class="collector-info">
+      {% if d.get('runner_name') %}<span class="collector-badge badge-runner">🏃 {{ d.runner_name }}</span>{% endif %}
+      {% if d.get('runner_phone') %}<span class="collector-badge badge-phone">📞 {{ d.runner_phone }}</span>{% endif %}
+    </div>
+  </div>
+  {% endfor %}{% else %}
+  <div class="empty-state"><div class="empty-icon">📋</div><p>No completed deliveries yet.</p></div>
+  {% endif %}
+</div>
+
+<script>
+// ── Map state ──────────────────────────────────────────────────────────────
+var _maps = {};   // id → {map, runnerMarker, restMarker, routeLine}  (runner tracker maps)
+var _plainMaps = []; // simple restaurant-pin maps that also need invalidateSize on tab switch
+
+function showTab(id,btn){
+  document.querySelectorAll('.tab-panel').forEach(p=>p.style.display='none');
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById(id).style.display='block'; btn.classList.add('active');
+  // invalidate any maps inside newly-shown tab
+  setTimeout(()=>{
+    Object.values(_maps).forEach(m=>m.map&&m.map.invalidateSize());
+    _plainMaps.forEach(m=>{ try{ m.invalidateSize(); }catch(e){} });
+  },100);
+}
+
+// Simple mini-map for restaurant location
+function initMap(id, lat, lng, label){
+  var el = document.getElementById(id);
+  if(!el || el._fb_init) return;
+  el._fb_init = true;
+  setTimeout(function(){
+    var m = L.map(id, {zoomControl:false, scrollWheelZoom:false, attributionControl:false}).setView([lat,lng],15);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(m);
+    var icon = L.divIcon({html:'<div style="font-size:28px;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))">🏪</div>',className:'',iconSize:[36,36],iconAnchor:[18,36]});
+    L.marker([lat,lng],{icon}).addTo(m).bindPopup(label).openPopup();
+    _plainMaps.push(m);
+    setTimeout(()=>m.invalidateSize(),300);
+  }, 80);
+}
+
+// Swiggy/Zomato style runner tracker
+function initRunnerTracker(donId, runnerId, restLat, restLng){
+  var el = document.getElementById('rmap_'+donId);
+  if(!el || el._fb_init) return;
+  el._fb_init = true;
+  setTimeout(function(){
+    var center = (restLat && restLat!==0) ? [restLat, restLng] : [17.385, 78.487];
+    var map = L.map('rmap_'+donId, {zoomControl:true, scrollWheelZoom:false, attributionControl:false}).setView(center, 14);
+    // Dark-ish tile (CartoDB Positron — clean, professional)
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {maxZoom:19}).addTo(map);
+
+    // Restaurant marker
+    var restMarker = null;
+    if(restLat && restLat!==0){
+      var restIcon = L.divIcon({html:'<div class="map-marker-rest">🏪</div>',className:'',iconSize:[36,42],iconAnchor:[18,42]});
+      restMarker = L.marker([restLat,restLng],{icon:restIcon}).addTo(map).bindPopup('📍 Restaurant — Pickup Point');
+    }
+
+    _maps[donId] = {map, restMarker, runnerMarker:null, routeLine:null};
+    setTimeout(()=>map.invalidateSize(),300);
+    // Fetch runner location immediately
+    fetchRunnerLocation(donId, runnerId, restLat, restLng);
+  }, 80);
+}
+
+async function fetchRunnerLocation(donId, runnerId, restLat, restLng){
+  var etaEl = document.getElementById('eta_'+donId);
+  try {
+    var res = await fetch('/ngo/api/runner_location/'+donId);
+    var data = await res.json();
+    var m = _maps[donId]; if(!m) return;
+
+    if(data.latitude){
+      // Build runner icon with pulse ring
+      var runnerIcon = L.divIcon({
+        html:`<div style="position:relative;"><div class="runner-pulse-ring"></div><div class="map-marker-runner">🏃</div></div>`,
+        className:'',iconSize:[40,48],iconAnchor:[20,48]
+      });
+
+      if(!m.runnerMarker){
+        m.runnerMarker = L.marker([data.latitude,data.longitude],{icon:runnerIcon}).addTo(m.map)
+          .bindPopup(`<b>🏃 ${data.runner_name}</b><br>📞 ${data.runner_phone||''}`)
+          .openPopup();
+      } else {
+        m.runnerMarker.setLatLng([data.latitude,data.longitude]);
+      }
+
+      // Draw route line between runner and restaurant
+      if(m.routeLine){ m.map.removeLayer(m.routeLine); }
+      if(restLat && restLat!==0){
+        m.routeLine = L.polyline([[data.latitude,data.longitude],[restLat,restLng]],
+          {color:'#16a34a',weight:3,dashArray:'6 4',opacity:.7}).addTo(m.map);
+        // Fit both markers
+        var bounds = L.latLngBounds([[data.latitude,data.longitude],[restLat,restLng]]);
+        m.map.fitBounds(bounds.pad(0.25));
+      } else {
+        m.map.setView([data.latitude,data.longitude],15);
+      }
+
+      // ETA estimate (straight-line)
+      if(restLat && restLat!==0){
+        var dist = m.map.distance([data.latitude,data.longitude],[restLat,restLng]);
+        var km = (dist/1000).toFixed(1);
+        var etaMins = Math.round(dist/250); // ~15 km/h
+        if(etaEl) etaEl.innerHTML = `<b>${km} km</b> away · ETA ~${etaMins} min · Updated ${new Date(data.timestamp).toLocaleTimeString()}`;
+      } else {
+        if(etaEl) etaEl.innerHTML = `Last seen ${new Date(data.timestamp).toLocaleTimeString()}`;
+      }
+    } else {
+      if(etaEl) etaEl.innerHTML = '📡 Runner has not shared GPS yet. Ask them to click "Share GPS".';
+    }
+    m.map.invalidateSize();
+  } catch(e){ if(etaEl) etaEl.textContent = 'Location unavailable'; }
+}
+
+function refreshRunnerMap(donId, runnerId, restLat, restLng){
+  fetchRunnerLocation(donId, runnerId, restLat, restLng);
+}
+
+async function genOtp(donationId, btn){
+  btn.disabled=true; btn.textContent='Generating...';
+  var res=await fetch('/ngo/generate_delivery_otp/'+donationId,{method:'POST'});
+  var data=await res.json();
+  if(data.ok){
+    btn.closest('.otp-card').innerHTML=`<div class="otp-label-text">🎯 Delivery OTP — Give to runner when food arrives</div><div class="otp-digits">${data.otp}</div><div class="otp-status-text">📱 Share this code when runner arrives at NGO</div>`;
+  } else { btn.disabled=false; btn.textContent='Retry'; }
+}
+
+function updateTimers(){
+  document.querySelectorAll('.timer-badge[data-expires]').forEach(el=>{
+    var diff=new Date(el.dataset.expires+'Z')-new Date();
+    if(diff<=0){el.textContent='⌛ Expired';el.style.background='#fee2e2';el.style.color='#dc2626';return;}
+    var h=Math.floor(diff/3600000),m=Math.floor((diff%3600000)/60000),s=Math.floor((diff%60000)/1000);
+    el.textContent=`⏱ ${h>0?h+'h ':''}${m}m ${s}s`;
+    el.style.background=diff<3600000?'#fef3c7':'#dcfce7';
+    el.style.color=diff<3600000?'#92400e':'#166634';
+  });
+}
+setInterval(updateTimers,1000); updateTimers();
+// Auto-refresh every 15 sec
+setInterval(function(){
+  Object.keys(_maps).forEach(function(donId){
+    var m=_maps[donId]; if(m&&m.runnerMarker) fetchRunnerLocation(donId,'',0,0);
+  });
+},15000);
+</script>
+{% endblock %}

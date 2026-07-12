@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>FoodBridge — Food Rescue Platform</title>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo-icon.png') }}">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+</head>
+
+<body>
+<nav class="navbar">
+  <a class="brand" href="/">
+    <img src="{{ url_for('static', filename='images/logo-icon.png') }}" class="brand-logo" alt="FoodBridge">
+    <span class="brand-text">Food<span class="brand-accent">Bridge</span></span>
+  </a>
+
+  <button class="nav-toggle" id="navToggle" type="button" aria-label="Toggle menu" aria-expanded="false" aria-controls="navLinks">
+    <span></span><span></span><span></span>
+  </button>
+
+  <div class="navlinks" id="navLinks">
+    <a class="nav-btn nav-btn-donate" href="{{ url_for('ngo.directory') }}">🎁 Donate Food on Occasion</a>
+
+    {% if session.get('user_id') %}
+      <span class="nav-user">👤 {{ session.get('name','') }}</span>
+
+      {% if session.get('role') in ['restaurant','ngo','runner'] %}
+      <a class="nav-btn" href="{{ url_for('profile.edit') }}">✏️ Edit Profile</a>
+      <a class="nav-btn" href="{{ url_for('support.contact') }}">📩 Contact Us</a>
+      {% endif %}
+
+      <a class="nav-btn nav-logout" href="{{ url_for('auth.logout') }}">Logout</a>
+
+    {% else %}
+
+      <a class="nav-btn" href="{{ url_for('auth.login') }}">Login</a>
+      <a class="nav-btn nav-primary" href="{{ url_for('auth.register') }}">Register</a>
+
+    {% endif %}
+  </div>
+</nav>
+<div class="nav-overlay" id="navOverlay"></div>
+
+<main class="container">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ category }}">
+      <span>{{ '✅' if category == 'success' else '⚠️' }}</span> {{ message }}
+    </div>
+    {% endfor %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</main>
+
+{% include 'chatbot.html' %}
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+</body>
+</html>

@@ -1,0 +1,82 @@
+{% extends 'base.html' %}{% block content %}
+<div class="auth-page">
+  <div class="auth-card auth-card-wide">
+    <h2 class="auth-title">✏️ Edit Your Profile</h2>
+    <p class="auth-sub">Update the details you gave at registration — name, phone, and address.</p>
+    <form method="post" action="{{ url_for('profile.edit') }}" class="auth-form">
+      <div class="form-row-2">
+        <div class="form-group">
+          <label>Full Name / Organisation</label>
+          <input name="name" value="{{ user.name }}" required>
+        </div>
+        <div class="form-group">
+          <label>Phone</label>
+          <input name="phone" type="tel" value="{{ user.phone }}" placeholder="+91 9999999999">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Email (cannot be changed)</label>
+        <input value="{{ user.email }}" disabled style="opacity:.6">
+      </div>
+
+      <div class="form-section-label">📍 Full Address</div>
+      {% set ad = user.get('address_details', {}) %}
+      <div class="form-row-2">
+        <div class="form-group">
+          <label>Door No / Flat No <span class="req">*</span></label>
+          <input name="door_no" value="{{ ad.get('door_no','') }}" required>
+        </div>
+        <div class="form-group">
+          <label>Building / Society Name</label>
+          <input name="building_name" value="{{ ad.get('building_name','') }}">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Street / Road <span class="req">*</span></label>
+        <input name="street" value="{{ ad.get('street','') }}" required>
+      </div>
+      <div class="form-row-2">
+        <div class="form-group">
+          <label>Area / Locality <span class="req">*</span></label>
+          <input name="area" value="{{ ad.get('area','') }}" required>
+        </div>
+        <div class="form-group">
+          <label>Landmark</label>
+          <input name="landmark" value="{{ ad.get('landmark','') }}">
+        </div>
+      </div>
+      <div class="form-row-3">
+        <div class="form-group">
+          <label>City <span class="req">*</span></label>
+          <input name="city" value="{{ ad.get('city','') }}" required>
+        </div>
+        <div class="form-group">
+          <label>State <span class="req">*</span></label>
+          <input name="state" value="{{ ad.get('state','') }}" required>
+        </div>
+        <div class="form-group">
+          <label>Pincode <span class="req">*</span></label>
+          <input name="pincode" value="{{ ad.get('pincode','') }}" required pattern="[0-9]{6}">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>GPS Location (optional — re-detect to update your map pin)</label>
+        <div class="gps-bar">
+          <input id="live_location_name" placeholder="Click GPS to re-detect your location →" style="flex:1">
+          <button type="button" class="btn-gps-big" onclick="captureRegistrationLocation()">
+            <span id="gpsSpinner" style="display:none">⏳</span> 📍 Detect Address
+          </button>
+        </div>
+        <input type="hidden" name="gps_latitude" id="gps_latitude" value="{{ user.get('gps_location',{}).get('latitude','') }}">
+        <input type="hidden" name="gps_longitude" id="gps_longitude" value="{{ user.get('gps_location',{}).get('longitude','') }}">
+        <input type="hidden" name="full_address_display" id="full_address_display">
+        <div id="gpsStatus" class="gps-pill" style="display:none"></div>
+        <div id="registerMap" class="leaflet-map" style="height:180px;margin-top:10px;display:none;border-radius:14px;overflow:hidden;"></div>
+      </div>
+
+      <button type="submit" class="btn-auth">💾 Save Changes</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,13 @@
+Flask==3.0.3
+Flask-PyMongo==2.3.0
+Flask-Bcrypt==1.0.1
+Flask-SocketIO==5.3.6
+Flask-Mail==0.10.0
+python-dotenv==1.0.1
+qrcode==7.4.2
+Pillow==10.4.0
+geopy==2.4.1
+Werkzeug==3.0.3
+pymongo==4.8.0
+eventlet==0.36.1
+certifi

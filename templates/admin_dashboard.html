@@ -1,0 +1,178 @@
+{% extends 'base.html' %}{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+
+<div class="dash-header">
+  <div>
+    <p class="eyebrow">Admin Digital Twin</p>
+    <h1>FoodBridge Operations Control</h1>
+    <p class="dash-sub">Live platform health, food waste analytics, impact numbers, and rescue-zone overview.</p>
+  </div>
+</div>
+
+<div class="stats-row admin-stats-row">
+  <div class="stat-card"><div class="stat-val">{{ stats.get('restaurants',0) }}</div><div class="stat-lbl">🏪 Restaurants</div></div>
+  <div class="stat-card"><div class="stat-val">{{ stats.get('ngos',0) }}</div><div class="stat-lbl">🏢 NGOs</div></div>
+  <div class="stat-card"><div class="stat-val">{{ stats.get('runners',0) }}</div><div class="stat-lbl">🏃 Runners</div></div>
+  <div class="stat-card"><div class="stat-val">{{ stats.get('donations',0) }}</div><div class="stat-lbl">🍱 Donations</div></div>
+  <div class="stat-card"><div class="stat-val">{{ stats.get('active',0) }}</div><div class="stat-lbl">🔴 Active</div></div>
+  <div class="stat-card"><div class="stat-val">{{ stats.get('delivered',0) }}</div><div class="stat-lbl">✅ Delivered</div></div>
+</div>
+
+<div class="admin-grid-2">
+  <div class="listing-card">
+    <h2 class="panel-title">📊 Food Waste Analytics</h2>
+    <div class="chart-wrap"><canvas id="analyticsChart"></canvas></div>
+  </div>
+  <div class="listing-card">
+    <h2 class="panel-title">🌍 Impact Twin</h2>
+    <div class="impact-list">
+      <div class="impact-row"><span>🥘 Food Saved</span><b>{{ stats.get('delivered',0) * 25 }} kg</b></div>
+      <div class="impact-row"><span>🍽 Meals Delivered</span><b>{{ stats.get('delivered',0) * 50 }}</b></div>
+      <div class="impact-row"><span>🌱 CO₂ Reduced</span><b>{{ stats.get('delivered',0) * 12 }} kg</b></div>
+    </div>
+  </div>
+</div>
+
+<div class="listing-card">
+  <h2 class="panel-title">🗺️ Heatmap Dashboard — Live Rescue Zones</h2>
+  <div id="adminHeatmap" class="admin-map"></div>
+</div>
+
+<div class="listing-card">
+  <h2 class="panel-title">🚩 Reported Problems</h2>
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="filterIssues('all',this)">All ({{ issues|length }})</button>
+    <button class="tab-btn" onclick="filterIssues('open',this)">🟠 Open ({{ issues|selectattr('status','equalto','Open')|list|length }})</button>
+    <button class="tab-btn" onclick="filterIssues('Resolved',this)">✅ Resolved ({{ issues|selectattr('status','equalto','Resolved')|list|length }})</button>
+  </div>
+  <div style="overflow-x:auto;margin-top:14px">
+  <table class="admin-table" id="issuesTable">
+    <thead><tr><th>Status</th><th>Reported By</th><th>Role</th><th>Contact</th><th>Category</th><th>Message</th><th>Media</th><th>When</th><th></th></tr></thead>
+    <tbody>
+      {% for i in issues %}
+      <tr data-status="{{ i.status }}">
+        <td><span class="role-pill {{ 'role-runner' if i.status=='Resolved' else 'role-restaurant' }}">{{ i.status }}</span></td>
+        <td>{{ i.reporter_name }}</td>
+        <td><span class="role-pill role-{{ i.reporter_role }}">{{ i.reporter_role|title }}</span></td>
+        <td>{{ i.reporter_phone or '—' }}<br><small>{{ i.reporter_email }}</small></td>
+        <td>{{ i.category }}</td>
+        <td style="max-width:260px">{{ i.message }}</td>
+        <td>{% if i.get('attachment') %}<a href="{{ url_for('static', filename=i.attachment) }}" target="_blank" rel="noopener">📎 View</a>{% else %}—{% endif %}</td>
+        <td>{{ i.created_at.strftime('%d %b, %I:%M %p') if i.get('created_at') else '—' }}</td>
+        <td>
+          {% if i.status != 'Resolved' %}
+          <form method="post" action="{{ url_for('support.resolve_issue', issue_id=i._id) }}">
+            <button type="submit" class="btn-sm-green">Mark Resolved</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="9" style="text-align:center;padding:20px">No problems reported yet. 🎉</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<div class="listing-card">
+  <h2 class="panel-title">📋 All Registrations</h2>
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="filterUsers('all',this)">All ({{ users|length }})</button>
+    <button class="tab-btn" onclick="filterUsers('restaurant',this)">🏪 Restaurants ({{ stats.get('restaurants',0) }})</button>
+    <button class="tab-btn" onclick="filterUsers('ngo',this)">🏢 NGOs ({{ stats.get('ngos',0) }})</button>
+    <button class="tab-btn" onclick="filterUsers('runner',this)">🏃 Runners ({{ stats.get('runners',0) }})</button>
+  </div>
+  <div style="overflow-x:auto;margin-top:14px">
+  <table class="admin-table" id="registrationsTable">
+    <thead><tr><th>Role</th><th>Name</th><th>Phone</th><th>Email</th><th>Address</th><th>Joined</th><th></th></tr></thead>
+    <tbody>
+      {% for u in users %}
+      <tr data-role="{{ u.role }}">
+        <td><span class="role-pill role-{{ u.role }}">{{ '🏪' if u.role=='restaurant' else '🏢' if u.role=='ngo' else '🏃' }} {{ u.role|title }}</span></td>
+        <td>{{ u.name }}</td>
+        <td>{{ u.phone or '—' }}</td>
+        <td>{{ u.email }}</td>
+        <td>{{ u.address or '—' }}</td>
+        <td>{{ u.created_at.strftime('%d %b %Y') if u.get('created_at') else '—' }}</td>
+        <td>
+          <form method="post" action="{{ url_for('admin.delete_user', user_id=u._id) }}" onsubmit="return confirm('Delete this {{ u.role }} registration permanently? This cannot be undone.');">
+            <button type="submit" class="btn-sm-red">🗑 Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" style="text-align:center;padding:20px">No registrations yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<script>
+function filterUsers(role, btn){
+  document.getElementById('registrationsTable').querySelectorAll('tbody tr').forEach(function(tr){
+    tr.style.display = (role==='all' || tr.dataset.role===role) ? '' : 'none';
+  });
+  btn.parentElement.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+}
+function filterIssues(status, btn){
+  document.getElementById('issuesTable').querySelectorAll('tbody tr').forEach(function(tr){
+    var s = tr.dataset.status;
+    var show = (status==='all') || (status==='open' ? s!=='Resolved' : s===status);
+    tr.style.display = show ? '' : 'none';
+  });
+  btn.parentElement.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+}
+
+async function loadAnalytics(){
+  try{
+    var res = await fetch('/admin/analytics');
+    var data = await res.json();
+    var ctx = document.getElementById('analyticsChart');
+    if(!ctx || !window.Chart) return;
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: Object.keys(data.statuses),
+        datasets: [{
+          label: 'Donations by status',
+          data: Object.values(data.statuses),
+          backgroundColor: ['#f59e0b','#3b82f6','#8b5cf6','#16a34a'],
+          borderRadius: 8,
+        }]
+      },
+      options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,ticks:{precision:0}}} }
+    });
+  }catch(e){ console.error('Analytics load failed', e); }
+}
+
+async function loadHeatmap(){
+  var el = document.getElementById('adminHeatmap');
+  if(!el) return;
+  var map = L.map('adminHeatmap', {zoomControl:true, scrollWheelZoom:true}).setView([20.5937,78.9629], 5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution:'© OpenStreetMap'}).addTo(map);
+  try{
+    var res = await fetch('/admin/heatmap-data');
+    var data = await res.json();
+    var pts = (data.points||[]);
+    if(pts.length){
+      var heatPoints = pts.map(function(p){ return [p.lat, p.lng, 0.6]; });
+      if(window.L && L.heatLayer){ L.heatLayer(heatPoints, {radius:28, blur:22, maxZoom:14}).addTo(map); }
+      pts.forEach(function(p){
+        L.circleMarker([p.lat,p.lng], {radius:5, color:'#16a34a', fillColor:'#16a34a', fillOpacity:.9})
+          .addTo(map).bindPopup('<b>'+(p.restaurant||'Restaurant')+'</b><br>'+(p.food||'')+'<br>Status: '+(p.status||''));
+      });
+      var bounds = L.latLngBounds(pts.map(function(p){return [p.lat,p.lng];}));
+      map.fitBounds(bounds.pad(0.3));
+    }
+  }catch(e){ console.error('Heatmap load failed', e); }
+  setTimeout(function(){ map.invalidateSize(); }, 300);
+}
+
+document.addEventListener('DOMContentLoaded', function(){ loadAnalytics(); loadHeatmap(); });
+</script>
+{% endblock %}

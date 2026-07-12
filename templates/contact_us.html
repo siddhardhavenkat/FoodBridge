@@ -1,0 +1,46 @@
+{% extends 'base.html' %}{% block content %}
+<div class="dash-header">
+  <div>
+    <p class="eyebrow">Support</p>
+    <h1>📩 Contact Us</h1>
+    <p class="dash-sub">Facing a bug or an issue with the app? Tell us and the FoodBridge team (admin) will see it right away.</p>
+  </div>
+</div>
+
+<div class="listing-card" style="max-width:640px">
+  <form method="post" action="{{ url_for('support.contact') }}" enctype="multipart/form-data" class="dash-form">
+    <div class="form-group">
+      <label>Category</label>
+      <select name="category" required>
+        {% for c in categories %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+      <label>What's the problem?</label>
+      <textarea name="message" rows="5" placeholder="Describe what happened, what you expected, and any steps to reproduce..." required></textarea>
+    </div>
+    <div class="form-group">
+      <label>Attach a photo or video (optional)</label>
+      <input type="file" name="attachment" accept="image/*,video/*">
+      <small style="color:var(--text-muted)">Screenshots or a short screen recording help us fix it faster.</small>
+    </div>
+    <button type="submit" class="btn-sm-green" style="padding:12px 24px;font-size:14px">🚀 Submit to Admin</button>
+  </form>
+</div>
+
+{% if my_issues %}
+<div class="listing-card">
+  <h2 class="panel-title">Your Past Reports</h2>
+  {% for i in my_issues %}
+  <div class="issue-row">
+    <span class="role-pill {{ 'role-runner' if i.status=='Resolved' else 'role-restaurant' }}">{{ i.status }}</span>
+    <div>
+      <b>{{ i.category }}</b>
+      <p style="margin:4px 0;color:var(--text-muted);font-size:13.5px">{{ i.message }}</p>
+      <small style="color:var(--text-muted)">{{ i.created_at.strftime('%d %b %Y, %I:%M %p') if i.get('created_at') else '' }}</small>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

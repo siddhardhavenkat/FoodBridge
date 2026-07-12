@@ -1,0 +1,179 @@
+{% extends 'base.html' %}{% block content %}
+
+<!-- HERO -->
+<section class="home-hero">
+  <div class="hero-bg-shapes">
+    <div class="shape shape1"></div><div class="shape shape2"></div><div class="shape shape3"></div>
+  </div>
+  <div class="hero-content">
+    <div class="hero-badge animate-fade-up">🌾 India's #1 Food Rescue Network</div>
+    <h1 class="hero-title animate-fade-up delay1">
+      Rescue Food.<br>
+      <span class="hero-accent">Feed Lives.</span><br>
+      End Waste.
+    </h1>
+    <p class="hero-desc animate-fade-up delay2">FoodBridge connects restaurants with surplus food directly to NGOs and runners — rescuing meals before they go to waste, with live GPS tracking and OTP verification.</p>
+    <div class="hero-cta animate-fade-up delay3">
+      <a class="btn-hero-primary" href="{{ url_for('auth.register') }}">🚀 Get Started Free</a>
+      <a class="btn-hero-secondary" href="{{ url_for('auth.login') }}">Login →</a>
+    </div>
+    <div class="hero-trust animate-fade-up delay4">
+      <span>🏪 Restaurants</span>
+      <span>🏢 NGOs</span>
+      <span>🏃 Runners</span>
+    </div>
+  </div>
+
+  <div class="hero-visual animate-fade-up delay2">
+    <div class="hero-card-stack">
+      <div class="floating-card">
+        <span class="fc-icon">🍛</span>
+        <div><b>50 meals available</b><br><small>Hotel Annapurna • Now</small></div>
+        <span class="fc-status green">● Live</span>
+      </div>
+      <div class="floating-card">
+        <span class="fc-icon">🏢</span>
+        <div><b>NGO Accepted</b><br><small>Hope Foundation</small></div>
+        <span class="fc-status blue">● Active</span>
+      </div>
+      <div class="floating-card">
+        <span class="fc-icon">🏃</span>
+        <div><b>Runner En Route</b><br><small>Ravi • 2.4 km away</small></div>
+        <span class="fc-status orange">● On the way</span>
+      </div>
+    </div>
+    <div class="hero-food-emoji">🍱</div>
+  </div>
+</section>
+
+<!-- IMPACT STATS -->
+<section class="impact-section">
+  <div class="impact-grid">
+    <div class="impact-card"><div class="impact-icon">♻️</div><div class="impact-num">0<span class="impact-unit">%</span></div><div class="impact-label">Food Waste Goal</div></div>
+    <div class="impact-card"><div class="impact-icon">📍</div><div class="impact-num">Live</div><div class="impact-label">Runner GPS Tracking</div></div>
+    <div class="impact-card"><div class="impact-icon">🔐</div><div class="impact-num">OTP</div><div class="impact-label">Verified Handover</div></div>
+    <div class="impact-card"><div class="impact-icon">⚡</div><div class="impact-num">&lt;30s</div><div class="impact-label">To Go Live</div></div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="howit-section">
+  <div class="section-label">Simple 3-Step Process</div>
+  <h2 class="section-title">From kitchen to community in minutes</h2>
+  <div class="steps-grid">
+    <div class="step-card">
+      <div class="step-num">1</div>
+      <div class="step-icon">🍽</div>
+      <h3>Restaurant Lists Food</h3>
+      <p>Add surplus food by typing or using <b>Voice Listing</b>. Goes live instantly with a countdown timer.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">2</div>
+      <div class="step-icon">🏢</div>
+      <h3>NGO Accepts</h3>
+      <p>NGO gets email alert, accepts with one tap, picks up themselves or sends a runner.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">3</div>
+      <div class="step-icon">✅</div>
+      <h3>OTP Verified Delivery</h3>
+      <p>6-digit numeric OTPs confirm pickup and delivery. Every meal is tracked end-to-end.</p>
+    </div>
+  </div>
+</section>
+
+<!-- LIVE TRACKING SHOWCASE -->
+<section class="showcase-section">
+  <div class="showcase-inner">
+    <div class="showcase-text">
+      <div class="section-label">Live GPS Tracking</div>
+      <h2 class="section-title" style="margin-bottom:14px">Track your runner<br>like Swiggy & Zomato</h2>
+      <p style="color:var(--text-muted);font-size:16px;line-height:1.7;margin-bottom:24px">NGOs see the runner's live location on an interactive map — restaurant pin, runner moving in real time, auto-refreshing every 15 seconds.</p>
+      <div class="showcase-features">
+        <div class="sf-item"><span class="sf-icon">📍</span> Live runner GPS every 15 sec</div>
+        <div class="sf-item"><span class="sf-icon">🏪</span> Restaurant pickup pin on map</div>
+        <div class="sf-item"><span class="sf-icon">📞</span> Runner name + phone shown</div>
+        <div class="sf-item"><span class="sf-icon">🔄</span> One-tap location refresh</div>
+      </div>
+    </div>
+    <div class="showcase-map-preview">
+      <div class="map-preview-card">
+        <div class="mp-header">
+          <div class="mp-runner-dot"></div>
+          <span style="font-weight:700;color:#fff;font-size:14px">Ravi Kumar — En Route</span>
+          <span class="live-badge">● LIVE</span>
+        </div>
+        <div id="demoMap" style="height:220px;width:100%;border-radius:0;"></div>
+        <div class="mp-footer">📍 2.4 km to restaurant · ETA ~8 min · 📞 +91 98765 43210</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WHO IT'S FOR (no corporate) -->
+<section class="roles-section">
+  <div class="section-label">Who Uses FoodBridge</div>
+  <h2 class="section-title">Built for every part of the rescue chain</h2>
+  <div class="roles-grid-3">
+    <div class="role-card role-restaurant">
+      <div class="role-emoji">🏪</div>
+      <h3>Restaurants & Hotels</h3>
+      <p>List surplus food in 30 seconds via form or voice. Share pickup OTP. See who collected.</p>
+      <a href="{{ url_for('auth.register') }}" class="role-cta">List Food →</a>
+    </div>
+    <div class="role-card role-ngo">
+      <div class="role-emoji">🏢</div>
+      <h3>NGOs & Orphanages</h3>
+      <p>Get instant email alerts. Accept with one tap. Track runner live on map like Swiggy.</p>
+      <a href="{{ url_for('auth.register') }}" class="role-cta">Join as NGO →</a>
+    </div>
+    <div class="role-card role-runner">
+      <div class="role-emoji">🏃</div>
+      <h3>Delivery Runners</h3>
+      <p>See open delivery jobs. Share GPS. Verify with OTP. Help your community every day.</p>
+      <a href="{{ url_for('auth.register') }}" class="role-cta">Become Runner →</a>
+    </div>
+  </div>
+</section>
+
+<!-- OCCASION DONATION CTA -->
+<section class="home-donate-cta">
+  <div class="home-donate-cta-text">
+    <h3>🎂 Celebrating a birthday, wedding or any occasion?</h3>
+    <p>Turn your celebration into a meal for someone in need. Browse our directory of registered NGOs/Organizations — see their contact details and location on Google Maps — and reach out to them directly to donate food.</p>
+  </div>
+  <a class="btn-hero-donate" href="{{ url_for('ngo.directory') }}">🎁 Find an NGO to Donate To</a>
+</section>
+
+<!-- QUOTE -->
+<section class="quote-section">
+  <div class="big-quote">
+    <span class="quote-mark">"</span>
+    <p>Annadhanam Maha Danam — Feeding people is the greatest act of giving.</p>
+    <span class="quote-mark">"</span>
+  </div>
+  <div class="quote-cta">
+    <a class="btn-hero-primary" href="{{ url_for('auth.register') }}">Join FoodBridge Today 🌾</a>
+  </div>
+</section>
+
+<script>
+// Demo map on home page
+document.addEventListener('DOMContentLoaded', function() {
+  var demoMap = L.map('demoMap', {zoomControl: false, scrollWheelZoom: false, dragging: false}).setView([16.704, 81.101], 14);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(demoMap);
+  var restIcon = L.divIcon({html: '<div class="demo-pin rest-pin">🏪</div>', className: '', iconSize: [36, 36], iconAnchor: [18, 36]});
+  var runnerIcon = L.divIcon({html: '<div class="demo-pin runner-pin">🏃</div>', className: '', iconSize: [36, 36], iconAnchor: [18, 36]});
+  L.marker([16.704, 81.101], {icon: restIcon}).addTo(demoMap).bindPopup('🏪 Restaurant — Pickup Point');
+  var runnerMarker = L.marker([16.698, 81.095], {icon: runnerIcon}).addTo(demoMap).bindPopup('🏃 Ravi — Runner').openPopup();
+  setTimeout(() => demoMap.invalidateSize(), 300);
+  // Animate runner moving towards restaurant
+  var steps = [[16.698,81.095],[16.699,81.096],[16.700,81.097],[16.701,81.098],[16.702,81.099],[16.703,81.100],[16.704,81.101]];
+  var i = 0;
+  setInterval(function() {
+    i = (i + 1) % steps.length;
+    runnerMarker.setLatLng(steps[i]);
+  }, 1200);
+});
+</script>
+{% endblock %}

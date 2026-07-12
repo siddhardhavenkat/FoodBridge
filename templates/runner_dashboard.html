@@ -1,0 +1,220 @@
+{% extends 'base.html' %}{% block content %}
+
+<div class="dash-header runner-dash-header">
+  <div>
+    <p class="eyebrow">Runner Dashboard</p>
+    <h1>Hello, {{ session.get('name','') }} 👋</h1>
+    <p class="dash-sub">Accept delivery jobs, share GPS, and confirm with OTP codes.</p>
+  </div>
+  <div class="dash-header-actions">
+    <button class="btn-gps-share" onclick="shareLocation(this)">📡 Share Live GPS</button>
+    <a class="btn-contact-us" href="{{ url_for('support.contact') }}">📩 Contact Us</a>
+  </div>
+</div>
+
+<div class="stats-row">
+  <div class="stat-card stat-total"><div class="stat-val">{{ jobs|length }}</div><div class="stat-lbl">Open Jobs</div></div>
+  <div class="stat-card stat-active"><div class="stat-val">{{ my_jobs|length }}</div><div class="stat-lbl">Active</div></div>
+  <div class="stat-card stat-delivered"><div class="stat-val">{{ history|length }}</div><div class="stat-lbl">Delivered</div></div>
+</div>
+
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="showTab('openJobsTab',this)">📦 Open Jobs</button>
+  <button class="tab-btn" onclick="showTab('myJobsTab',this)">🚚 My Deliveries</button>
+  <button class="tab-btn" onclick="showTab('runnerHistTab',this)">📋 History</button>
+</div>
+
+<!-- OPEN JOBS -->
+<div id="openJobsTab" class="tab-panel">
+  {% if jobs %}
+    {% for d in jobs %}
+    <div class="listing-card listing-available">
+      <div class="lc-header">
+        <div class="lc-title">
+          {% if d.get('food_items') %}{% for fi in d.food_items %}<span class="food-tag">{{ fi.name }} × {{ fi.quantity }} {{ fi.unit }}</span>{% endfor %}
+          {% else %}<span class="food-tag">{{ d.food_type }} × {{ d.quantity }} {{ d.get('unit','portions') }}</span>{% endif %}
+        </div>
+        <span class="status-pill status-available">Open</span>
+      </div>
+
+      {% if d.get('food_image') %}
+      <img src="{{ url_for('static', filename=d.food_image) }}" class="food-photo" alt="Food">
+      {% endif %}
+
+      <div class="lc-meta">
+        <span>🏪 From: {{ d.restaurant_name }}</span>
+        <span>🏢 To: {{ d.get('ngo_name','NGO') }}</span>
+        <span>📍 Pickup: {{ d.location }}</span>
+        {% if d.get('expires_at') %}<span class="timer-badge" data-expires="{{ d.expires_at.isoformat() }}">⏱ Loading...</span>{% endif %}
+        {% if d.get('notes') %}<span>📝 {{ d.notes }}</span>{% endif %}
+      </div>
+      {% if d.get('order_id') %}<div class="order-id-badge">🆔 Order ID: <b>{{ d.order_id }}</b></div>{% endif %}
+      {% if d.get('restaurant_phone') %}<a href="tel:{{ d.restaurant_phone }}" class="collector-badge badge-phone">📞 Restaurant: {{ d.restaurant_phone }}</a>{% endif %}
+
+      {% if d.get('latitude') and d.latitude != 0 %}
+      <div id="map_job_{{ d._id }}" class="leaflet-map map-small"></div>
+      <script>document.addEventListener('DOMContentLoaded',function(){initMap('map_job_{{ d._id }}',{{ d.latitude }},{{ d.longitude }},'🏪 '+'{{ d.restaurant_name }}');});</script>
+      {% if d.get('latitude') and d.longitude %}<a href="https://www.google.com/maps/dir/?api=1&destination={{ d.latitude }},{{ d.longitude }}" target="_blank" rel="noopener" class="btn-sm-green" style="display:inline-block;text-decoration:none;margin:6px 0">🧭 Directions to Restaurant</a>{% endif %}
+      {% endif %}
+
+      <form method="post" action="{{ url_for('runner.accept_delivery', donation_id=d._id) }}" style="margin-top:12px">
+        <button class="btn-accept">✅ Accept This Job</button>
+      </form>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state"><div class="empty-icon">📦</div><p>No open jobs right now. Check back soon!</p></div>
+  {% endif %}
+</div>
+
+<!-- MY ACTIVE DELIVERIES -->
+<div id="myJobsTab" class="tab-panel" style="display:none">
+  {% if my_jobs %}
+    {% for d in my_jobs %}
+    <div class="listing-card listing-accepted">
+      <div class="lc-header">
+        <div class="lc-title">
+          {% if d.get('food_items') %}{% for fi in d.food_items %}<span class="food-tag">{{ fi.name }} × {{ fi.quantity }} {{ fi.unit }}</span>{% endfor %}
+          {% else %}<span class="food-tag">{{ d.food_type }} × {{ d.quantity }}</span>{% endif %}
+        </div>
+        <span class="status-pill status-{{ d.status|lower|replace(' ','-') }}">{{ d.status }}</span>
+      </div>
+
+      {% if d.get('food_image') %}
+      <img src="{{ url_for('static', filename=d.food_image) }}" class="food-photo" alt="Food">
+      {% endif %}
+
+      <div class="lc-meta">
+        <span>🏪 From: {{ d.restaurant_name }}</span>
+        <span>🏢 To: {{ d.get('ngo_name','NGO') }}</span>
+        <span>📍 {{ d.location }}</span>
+      </div>
+      {% if d.get('order_id') %}<div class="order-id-badge">🆔 Order ID: <b>{{ d.order_id }}</b></div>{% endif %}
+
+      <!-- STAGE 1: Restaurant pickup point -->
+      <div class="delivery-stage">
+        <div class="stage-title">📦 Pickup — {{ d.restaurant_name }}</div>
+        {% if d.get('restaurant_phone') %}<a href="tel:{{ d.restaurant_phone }}" class="collector-badge badge-phone">📞 {{ d.restaurant_phone }}</a>{% endif %}
+        {% if d.get('latitude') and d.latitude != 0 %}
+        <div id="map_myjob_{{ d._id }}" class="leaflet-map map-small"></div>
+        <script>document.addEventListener('DOMContentLoaded',function(){initMap('map_myjob_{{ d._id }}',{{ d.latitude }},{{ d.longitude }},'🏪 Pickup: '+'{{ d.restaurant_name }}');});</script>
+        <a href="https://www.google.com/maps/dir/?api=1&destination={{ d.latitude }},{{ d.longitude }}" target="_blank" rel="noopener" class="btn-sm-green" style="display:inline-block;text-decoration:none;margin:6px 0">🧭 Navigate to Restaurant</a>
+        {% endif %}
+      </div>
+
+      <!-- STAGE 2: NGO drop-off point (Zomato/Swiggy-style second leg) -->
+      <div class="delivery-stage">
+        <div class="stage-title">🏁 Drop-off — {{ d.get('ngo_name','NGO') }}</div>
+        {% if d.get('ngo_phone') %}<a href="tel:{{ d.ngo_phone }}" class="collector-badge badge-phone">📞 {{ d.ngo_phone }}</a>{% endif %}
+        {% if d.get('ngo_address') %}<span class="collector-badge">📍 {{ d.ngo_address }}</span>{% endif %}
+        {% if d.get('ngo_latitude') and d.ngo_latitude != 0 %}
+        <div id="map_ngo_{{ d._id }}" class="leaflet-map map-small"></div>
+        <script>document.addEventListener('DOMContentLoaded',function(){initMap('map_ngo_{{ d._id }}',{{ d.ngo_latitude }},{{ d.ngo_longitude }},'🏢 Drop: '+'{{ d.get("ngo_name","NGO") }}');});</script>
+        <a href="https://www.google.com/maps/dir/?api=1&destination={{ d.ngo_latitude }},{{ d.ngo_longitude }}" target="_blank" rel="noopener" class="btn-sm-green" style="display:inline-block;text-decoration:none;margin:6px 0">🧭 Navigate to NGO</a>
+        {% else %}
+        <div class="empty-state" style="padding:8px"><small>NGO hasn't shared a GPS pin yet.</small></div>
+        {% endif %}
+      </div>
+
+      <!-- STEP 1: Pickup OTP -->
+      {% if not d.get('pickup_otp_verified') %}
+      <div class="otp-card otp-pickup runner-step">
+        <div class="step-badge">Step 1</div>
+        <div class="otp-label-text">🔑 Enter Pickup OTP from Restaurant</div>
+        <form method="post" action="{{ url_for('runner.verify_pickup', donation_id=d._id) }}" class="otp-enter-form">
+          <input name="otp" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="_ _ _ _ _ _" class="otp-input" required autocomplete="one-time-code">
+          <button class="btn-otp-verify">Confirm Pickup ✅</button>
+        </form>
+        <small>Ask restaurant staff for the 6-digit code</small>
+      </div>
+
+      <!-- STEP 2: Delivery OTP (only after pickup) -->
+      {% elif d.status == 'Picked Up' and not d.get('delivery_otp_verified') %}
+      <div class="otp-card otp-pickup runner-step done-step">
+        <div class="otp-label-text">✅ Step 1 Done — Food Picked Up!</div>
+      </div>
+      <div class="otp-card otp-delivery runner-step">
+        <div class="step-badge">Step 2</div>
+        <div class="otp-label-text">🎯 Enter Delivery OTP from NGO</div>
+        <form method="post" action="{{ url_for('runner.verify_delivery', donation_id=d._id) }}" class="otp-enter-form">
+          <input name="otp" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="_ _ _ _ _ _" class="otp-input" required autocomplete="one-time-code">
+          <button class="btn-otp-verify">Confirm Delivery ✅</button>
+        </form>
+        <small>Ask NGO staff for the 6-digit delivery code</small>
+      </div>
+      {% else %}
+      <div class="otp-card done-step"><div class="otp-label-text">🎉 All done! Both OTPs verified.</div></div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state"><div class="empty-icon">🚚</div><p>No active deliveries. Accept a job from Open Jobs!</p></div>
+  {% endif %}
+</div>
+
+<!-- HISTORY -->
+<div id="runnerHistTab" class="tab-panel" style="display:none">
+  {% if history %}
+    {% for d in history %}
+    <div class="listing-card listing-delivered">
+      <div class="lc-header">
+        <div class="lc-title">
+          {% if d.get('food_items') %}{% for fi in d.food_items %}<span class="food-tag">{{ fi.name }} × {{ fi.quantity }} {{ fi.unit }}</span>{% endfor %}
+          {% else %}<span class="food-tag">{{ d.food_type }} × {{ d.quantity }}</span>{% endif %}
+        </div>
+        <span class="status-pill status-delivered">✅ Delivered</span>
+      </div>
+      <div class="lc-meta">
+        <span>🏪 {{ d.restaurant_name }}</span>
+        <span>🏢 {{ d.get('ngo_name','NGO') }}</span>
+        <span>📅 {{ d.updated_at.strftime('%d %b %Y, %I:%M %p') if d.get('updated_at') else '' }}</span>
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state"><div class="empty-icon">📋</div><p>No completed deliveries yet. Accept your first job!</p></div>
+  {% endif %}
+</div>
+
+<script>
+var watchId = null;
+var _miniMaps = []; // registry so switching tabs re-measures maps that were rendered while hidden
+function showTab(id,btn){
+  document.querySelectorAll('.tab-panel').forEach(p=>p.style.display='none');
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById(id).style.display='block';btn.classList.add('active');
+  setTimeout(()=>_miniMaps.forEach(m=>{ try{ m.invalidateSize(); }catch(e){} }), 120);
+}
+function initMap(id,lat,lng,label){
+  const el=document.getElementById(id);
+  if(!el||el._fb_init)return;
+  el._fb_init = true;
+  setTimeout(()=>{
+    const map=L.map(id,{zoomControl:false,scrollWheelZoom:false}).setView([lat,lng],15);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    L.marker([lat,lng]).addTo(map).bindPopup(label).openPopup();
+    _miniMaps.push(map);
+    setTimeout(()=>map.invalidateSize(),300);
+  },100);
+}
+function shareLocation(btn){
+  if(!navigator.geolocation){alert('GPS not supported on this device');return;}
+  if(watchId){navigator.geolocation.clearWatch(watchId);watchId=null;btn.textContent='📡 Share Live GPS';btn.classList.remove('gps-active');return;}
+  btn.textContent='⏳ Starting GPS...';
+  watchId=navigator.geolocation.watchPosition(async pos=>{
+    btn.textContent='📡 GPS Active ✅';btn.classList.add('gps-active');
+    await fetch('/gps/update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({latitude:pos.coords.latitude,longitude:pos.coords.longitude})});
+  },err=>{alert('GPS error: '+err.message);btn.textContent='📡 Share Live GPS';},{enableHighAccuracy:true});
+}
+function updateTimers(){
+  document.querySelectorAll('.timer-badge[data-expires]').forEach(el=>{
+    const diff=new Date(el.dataset.expires+'Z')-new Date();
+    if(diff<=0){el.textContent='⌛ Expired';el.style.background='#fee2e2';el.style.color='#dc2626';return;}
+    const h=Math.floor(diff/3600000),m=Math.floor((diff%3600000)/60000),s=Math.floor((diff%60000)/1000);
+    el.textContent=`⏱ ${h>0?h+'h ':''}${m}m ${s}s`;
+    el.style.background=diff<3600000?'#fef3c7':'#dcfce7';
+  });
+}
+setInterval(updateTimers,1000);updateTimers();
+</script>
+{% endblock %}

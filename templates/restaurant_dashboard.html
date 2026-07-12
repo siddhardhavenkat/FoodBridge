@@ -1,0 +1,376 @@
+{% extends 'base.html' %}{% block content %}
+
+<div class="dash-header restaurant-dash-header">
+  <div>
+    <p class="eyebrow">Restaurant Dashboard</p>
+    <h1>Hello, {{ session.get('name','') }} 👋</h1>
+    <p class="dash-sub">Manage your food listings, share OTPs, and track collections.</p>
+  </div>
+  <div class="dash-header-actions">
+    <button class="btn-voice" onclick="openVoiceModal()">🎤 Voice Listing</button>
+    <a class="btn-contact-us" href="{{ url_for('support.contact') }}">📩 Contact Us</a>
+  </div>
+</div>
+
+<div class="stats-row">
+  <div class="stat-card stat-total"><div class="stat-val">{{ donations|length }}</div><div class="stat-lbl">Total Listings</div></div>
+  <div class="stat-card stat-delivered"><div class="stat-val">{{ donations|selectattr('status','equalto','Delivered')|list|length }}</div><div class="stat-lbl">Delivered</div></div>
+  <div class="stat-card stat-active"><div class="stat-val">{{ donations|selectattr('status','equalto','Available')|list|length }}</div><div class="stat-lbl">Live Now</div></div>
+  <div class="stat-card stat-progress"><div class="stat-val">{{ donations|selectattr('status','equalto','Accepted')|list|length }}</div><div class="stat-lbl">In Progress</div></div>
+</div>
+
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="showTab('newListingTab',this)">➕ New Listing</button>
+  <button class="tab-btn" onclick="showTab('activeTab',this)">🔴 Live</button>
+  <button class="tab-btn" onclick="showTab('historyTab',this)">📋 History</button>
+</div>
+
+<!-- NEW LISTING FORM -->
+<div id="newListingTab" class="tab-panel">
+<form class="dash-form" method="post" action="{{ url_for('restaurant.create_donation') }}" enctype="multipart/form-data">
+  <div class="form-section-label">🍱 Food Items</div>
+  <div id="foodItemsWrapper">
+    <div class="food-row">
+      <div class="form-group fg-grow"><label>FOOD ITEM</label><input name="food_item" id="voice_food_item" placeholder="e.g. Sambar Rice, Biryani..." required></div>
+      <div class="form-group fg-sm"><label>QTY</label><input name="quantity" id="voice_quantity" type="number" placeholder="20" min="1" required></div>
+      <div class="form-group fg-sm"><label>UNIT</label>
+        <select name="unit" id="voice_unit">
+          <option value="portions">portions</option><option value="plates">plates</option>
+          <option value="kg">kg</option><option value="litres">litres</option>
+          <option value="packets">packets</option><option value="pieces">pieces</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  <button type="button" class="btn-add-item" onclick="addFoodRow()">＋ Add another item</button>
+
+  <div class="form-section-label" style="margin-top:18px">📍 Pickup Location</div>
+  <div class="form-group">
+    <div class="gps-bar">
+      <input name="location" id="donation_location" placeholder="Click 'Detect Address' or type manually →" style="flex:1" required>
+      <button type="button" class="btn-gps-big" onclick="captureDonationLocation()">
+        <span id="donGpsSpinner" style="display:none">⏳</span> 📍 Detect Address
+      </button>
+    </div>
+    <input type="hidden" name="latitude" id="donation_latitude">
+    <input type="hidden" name="longitude" id="donation_longitude">
+    <div id="donationGpsStatus" class="gps-pill" style="display:none"></div>
+    <div id="donationMap" class="leaflet-map" style="height:200px;margin-top:10px;display:none;border-radius:14px;overflow:hidden;"></div>
+  </div>
+
+  <div class="form-row-2" style="margin-top:14px">
+    <div class="form-group">
+      <label>EXPIRES IN</label>
+      <select name="expires_hours">
+        <option value="1">1 hour</option><option value="2">2 hours</option>
+        <option value="4" selected>4 hours</option><option value="6">6 hours</option>
+        <option value="12">12 hours</option><option value="24">24 hours</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>NOTES (optional)</label>
+      <input name="notes" placeholder="e.g. Veg only. Bring containers.">
+    </div>
+  </div>
+
+  <div class="form-group" style="margin-top:12px">
+    <label>FOOD PHOTO (optional)</label>
+    <input name="food_image" type="file" accept="image/*" onchange="previewFoodImage(this)">
+    <img id="foodPreview" style="display:none;max-width:240px;margin-top:8px;border-radius:12px;object-fit:cover;max-height:160px">
+  </div>
+
+  <button type="submit" class="btn-post">🚀 Post — Go Live Now</button>
+</form>
+</div>
+
+<!-- LIVE LISTINGS -->
+<div id="activeTab" class="tab-panel" style="display:none">
+  {% set active_donations = [] %}
+  {% for d in donations %}{% if d.status in ['Available','Accepted','Picked Up'] %}{% set _ = active_donations.append(d) %}{% endif %}{% endfor %}
+  {% if active_donations %}
+    {% for d in active_donations %}
+    <div class="listing-card listing-{{ d.status|lower|replace(' ','-') }}">
+      <div class="lc-header">
+        <div class="lc-title">
+          {% if d.get('food_items') %}{% for fi in d.food_items %}<span class="food-tag">{{ fi.name }} × {{ fi.quantity }} {{ fi.unit }}</span>{% endfor %}
+          {% else %}<span class="food-tag">{{ d.food_type }} × {{ d.quantity }} {{ d.get('unit','portions') }}</span>{% endif %}
+        </div>
+        <span class="status-pill status-{{ d.status|lower|replace(' ','-') }}">{{ d.status }}</span>
+      </div>
+      {% if d.get('order_id') %}<div class="order-id-badge">🆔 Order ID: <b>{{ d.order_id }}</b></div>{% endif %}
+      {% if d.get('food_image') %}<img src="{{ url_for('static', filename=d.food_image) }}" class="food-photo">{% endif %}
+      <div class="lc-meta">
+        <span>📍 {{ d.location }}</span>
+        {% if d.get('expires_at') %}<span class="timer-badge" data-expires="{{ d.expires_at.isoformat() }}">⏱ ...</span>{% endif %}
+        {% if d.get('notes') %}<span>📝 {{ d.notes }}</span>{% endif %}
+      </div>
+      {% if d.get('latitude') and d.latitude != 0 %}
+      <div id="map_live_{{ d._id }}" class="leaflet-map" style="height:160px;border-radius:12px;margin:10px 0;overflow:hidden;"></div>
+      <script>document.addEventListener('DOMContentLoaded',function(){initMiniMap('map_live_{{ d._id }}',{{ d.latitude }},{{ d.longitude }},'{{ d.restaurant_name }}');});</script>
+      {% endif %}
+      <div class="collector-info">
+        {% if d.get('ngo_name') %}<span class="collector-badge badge-ngo">🏢 NGO: {{ d.ngo_name }}</span>{% endif %}
+        {% if d.get('runner_name') %}<span class="collector-badge badge-runner">🏃 Runner: {{ d.runner_name }}</span>{% endif %}
+        {% if d.get('runner_phone') %}<span class="collector-badge badge-phone">📞 {{ d.runner_phone }}</span>{% endif %}
+        {% if not d.get('ngo_name') %}<span class="collector-badge badge-waiting">⏳ Awaiting NGO</span>{% endif %}
+      </div>
+      {% if d.status == 'Accepted' and not d.get('collection_type') %}
+      <form method="post" action="{{ url_for('restaurant.set_collection_type', donation_id=d._id) }}" class="collection-form">
+        <p class="sm-label">📦 How will food be collected?</p>
+        <div class="radio-group">
+          <label class="radio-opt"><input type="radio" name="collection_type" value="self" required> 🏢 NGO self-pickup</label>
+          <label class="radio-opt"><input type="radio" name="collection_type" value="runner"> 🏃 Send a runner</label>
+        </div>
+        <button class="btn-sm-green" style="margin-top:10px">Confirm →</button>
+      </form>
+      {% endif %}
+      {% if d.get('pickup_otp') %}
+      <div class="otp-card otp-pickup">
+        <div class="otp-label-text">🔑 Pickup OTP — Share with Runner / NGO</div>
+        <div class="otp-digits">{{ d.pickup_otp }}</div>
+        <div class="otp-status-text">{{ '✅ Food collected & verified' if d.get('pickup_otp_verified') else '⏳ Waiting for pickup verification' }}</div>
+      </div>
+      {% endif %}
+      {% if d.status in ['Available','Accepted'] %}
+      <details class="edit-items-details">
+        <summary>✏️ Edit food items</summary>
+        <form method="post" action="{{ url_for('restaurant.update_items', donation_id=d._id) }}" class="edit-form" id="editForm_{{ d._id }}">
+          {% if d.get('food_items') %}
+            {% for fi in d.food_items %}
+            <div class="food-row">
+              <input name="food_item[]" value="{{ fi.name }}" placeholder="Food item" style="flex:3;padding:8px;border:1px solid #ddd;border-radius:8px">
+              <input name="quantity[]" type="number" value="{{ fi.quantity }}" min="1" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:8px">
+              <select name="unit[]" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:8px">
+                {% for u in ['portions','plates','kg','litres','packets','pieces'] %}<option value="{{ u }}" {{ 'selected' if fi.unit==u }}>{{ u }}</option>{% endfor %}
+              </select>
+            </div>
+            {% endfor %}
+          {% else %}
+            <div class="food-row">
+              <input name="food_item[]" value="{{ d.food_type }}" placeholder="Food item" style="flex:3;padding:8px;border:1px solid #ddd;border-radius:8px">
+              <input name="quantity[]" type="number" value="{{ d.quantity }}" min="1" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:8px">
+              <select name="unit[]" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:8px">
+                {% for u in ['portions','plates','kg','litres','packets','pieces'] %}<option value="{{ u }}" {{ 'selected' if d.unit==u }}>{{ u }}</option>{% endfor %}
+              </select>
+            </div>
+          {% endif %}
+          <div class="edit-extra-wrap" id="editExtraWrap_{{ d._id }}"></div>
+          <button type="button" class="btn-add-item" onclick="addEditRow('{{ d._id }}')">＋ Add another item</button>
+          <button class="btn-sm-green" style="margin-top:8px">Save Changes</button>
+        </form>
+      </details>
+      <form method="post" action="{{ url_for('restaurant.delete_donation', donation_id=d._id) }}" style="margin-top:8px" onsubmit="return confirm('Delete this live food listing? NGOs will no longer see it.');">
+        <button class="btn-sm-red">🗑 Delete this listing</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state"><div class="empty-icon">🍽</div><p>No active listings. Create one above!</p></div>
+  {% endif %}
+</div>
+
+<!-- HISTORY -->
+<div id="historyTab" class="tab-panel" style="display:none">
+  {% set delivered = [] %}
+  {% for d in donations %}{% if d.status == 'Delivered' %}{% set _ = delivered.append(d) %}{% endif %}{% endfor %}
+  {% if delivered %}
+    {% for d in delivered %}
+    <div class="listing-card listing-delivered">
+      <div class="lc-header">
+        <div class="lc-title">{% if d.get('food_items') %}{% for fi in d.food_items %}<span class="food-tag">{{ fi.name }} × {{ fi.quantity }} {{ fi.unit }}</span>{% endfor %}{% else %}<span class="food-tag">{{ d.food_type }} × {{ d.quantity }}</span>{% endif %}</div>
+        <span class="status-pill status-delivered">✅ Delivered</span>
+      </div>
+      {% if d.get('food_image') %}<img src="{{ url_for('static', filename=d.food_image) }}" class="food-photo">{% endif %}
+      <div class="lc-meta">
+        <span>📍 {{ d.location }}</span>
+        <span>📅 {{ d.created_at.strftime('%d %b %Y, %I:%M %p') if d.get('created_at') else '' }}</span>
+      </div>
+      <div class="collector-info">
+        {% if d.get('ngo_name') %}<span class="collector-badge badge-ngo">🏢 {{ d.ngo_name }}</span>{% endif %}
+        {% if d.get('runner_name') %}<span class="collector-badge badge-runner">🏃 {{ d.runner_name }}</span>{% endif %}
+        {% if d.get('runner_phone') %}<span class="collector-badge badge-phone">📞 {{ d.runner_phone }}</span>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state"><div class="empty-icon">📋</div><p>No completed deliveries yet.</p></div>
+  {% endif %}
+</div>
+
+<!-- VOICE LISTING MODAL -->
+<div id="voiceModal" class="modal-overlay" style="display:none">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3>🎤 Voice Food Listing</h3>
+      <button class="modal-close" onclick="closeVoiceModal()">✕</button>
+    </div>
+    <p class="modal-hint">Say something like: <em>"50 plates of biryani"</em> or <em>"20 kg dal rice"</em></p>
+    <div id="voiceStatus" class="voice-status idle">🎙 Tap below to start speaking</div>
+    <div id="voiceTranscript" class="voice-transcript"></div>
+    <div class="modal-actions">
+      <button id="voiceStartBtn" class="btn-voice-start" onclick="startVoiceRecording()">🎤 Start Listening</button>
+      <button class="btn-sm-green" onclick="applyVoiceToForm(); closeVoiceModal()">✅ Use This</button>
+      <button class="btn-cancel" onclick="closeVoiceModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var _donMap=null, _donMarker=null, _voiceResult={};
+var _miniMaps=[]; // registry of leaflet maps created inside tab panels, so we can fix "map not showing" when a hidden tab becomes visible
+
+function showTab(id,btn){
+  document.querySelectorAll('.tab-panel').forEach(p=>p.style.display='none');
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById(id).style.display='block'; btn.classList.add('active');
+  // Leaflet computes map size at creation time; if the tab was hidden then, the
+  // map renders broken/blank. Re-measure every tracked map now that it's visible.
+  setTimeout(()=>_miniMaps.forEach(m=>{ try{ m.invalidateSize(); }catch(e){} }), 120);
+}
+
+function addFoodRow(){
+  const wrap=document.getElementById('foodItemsWrapper');
+  const row=document.createElement('div'); row.className='food-row';
+  row.innerHTML=`<div class="form-group fg-grow"><label>FOOD ITEM</label><input name="food_item_extra[]" placeholder="e.g. Dal, Chapati..."></div><div class="form-group fg-sm"><label>QTY</label><input name="quantity_extra[]" type="number" placeholder="10" min="1"></div><div class="form-group fg-sm"><label>UNIT</label><select name="unit_extra[]"><option>portions</option><option>plates</option><option>kg</option><option>litres</option><option>packets</option><option>pieces</option></select></div><button type="button" onclick="this.parentNode.remove()" class="btn-remove-row">✕</button>`;
+  wrap.appendChild(row);
+}
+
+function addEditRow(donationId){
+  const wrap=document.getElementById('editExtraWrap_'+donationId);
+  const row=document.createElement('div'); row.className='food-row';
+  row.innerHTML=`<input name="food_item_extra[]" placeholder="e.g. Dal, Chapati..." style="flex:3;padding:8px;border:1px solid #ddd;border-radius:8px"><input name="quantity_extra[]" type="number" placeholder="10" min="1" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:8px"><select name="unit_extra[]" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:8px"><option>portions</option><option>plates</option><option>kg</option><option>litres</option><option>packets</option><option>pieces</option></select><button type="button" onclick="this.parentNode.remove()" class="btn-remove-row">✕</button>`;
+  wrap.appendChild(row);
+}
+
+function previewFoodImage(input){
+  const prev=document.getElementById('foodPreview');
+  if(input.files&&input.files[0]){prev.src=URL.createObjectURL(input.files[0]);prev.style.display='block';}
+}
+
+async function reverseGeocode(lat,lng){
+  try{
+    const r=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,{headers:{'Accept-Language':'en'}});
+    return await r.json();
+  }catch(e){return null;}
+}
+
+async function captureDonationLocation(){
+  if(!navigator.geolocation){alert('GPS not supported');return;}
+  const status=document.getElementById('donationGpsStatus');
+  const spinner=document.getElementById('donGpsSpinner');
+  spinner.style.display='inline';
+  status.style.display='block'; status.textContent='📡 Getting location...';
+  status.style.background='#fef3c7'; status.style.color='#92400e';
+
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    const lat=pos.coords.latitude, lng=pos.coords.longitude;
+    document.getElementById('donation_latitude').value=lat;
+    document.getElementById('donation_longitude').value=lng;
+
+    status.textContent='🔍 Fetching address...';
+    const geo=await reverseGeocode(lat,lng);
+    if(geo&&geo.address){
+      const a=geo.address;
+      const area=a.suburb||a.neighbourhood||a.quarter||a.village||'';
+      const city=a.city||a.town||a.county||'';
+      const state=a.state||''; const pin=a.postcode||'';
+      const shortAddr=[area,city,state,pin].filter(Boolean).join(', ');
+      document.getElementById('donation_location').value=shortAddr||geo.display_name;
+      status.textContent='✅ Location: '+shortAddr;
+      status.style.background='#dcfce7'; status.style.color='#166534';
+    } else {
+      document.getElementById('donation_location').value=`GPS (${lat.toFixed(5)}, ${lng.toFixed(5)})`;
+      status.textContent='✅ Coordinates captured';
+      status.style.background='#dcfce7'; status.style.color='#166534';
+    }
+    spinner.style.display='none';
+
+    const mapDiv=document.getElementById('donationMap');
+    mapDiv.style.display='block';
+    setTimeout(()=>{
+      if(!_donMap){
+        _donMap=L.map('donationMap',{zoomControl:true,scrollWheelZoom:false}).setView([lat,lng],16);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(_donMap);
+        _donMarker=L.marker([lat,lng]).addTo(_donMap).bindPopup('Pickup location').openPopup();
+      } else { _donMarker.setLatLng([lat,lng]); _donMap.setView([lat,lng],16); }
+      setTimeout(()=>_donMap.invalidateSize(),200);
+    },50);
+  },err=>{
+    spinner.style.display='none';
+    status.textContent='❌ GPS error: '+err.message;
+    status.style.background='#fee2e2'; status.style.color='#dc2626';
+  },{enableHighAccuracy:true,timeout:12000});
+}
+
+function initMiniMap(id,lat,lng,label){
+  const el=document.getElementById(id); if(!el||el._leaflet_id)return;
+  setTimeout(()=>{
+    const map=L.map(id,{zoomControl:false,scrollWheelZoom:false}).setView([lat,lng],15);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    L.marker([lat,lng]).addTo(map).bindPopup(label).openPopup();
+    _miniMaps.push(map);
+    setTimeout(()=>map.invalidateSize(),300);
+  },100);
+}
+
+function updateTimers(){
+  document.querySelectorAll('.timer-badge[data-expires]').forEach(el=>{
+    const diff=new Date(el.dataset.expires+'Z')-new Date();
+    if(diff<=0){el.textContent='⌛ Expired';el.style.background='#fee2e2';el.style.color='#dc2626';return;}
+    const h=Math.floor(diff/3600000),m=Math.floor((diff%3600000)/60000),s=Math.floor((diff%60000)/1000);
+    el.textContent=`⏱ ${h>0?h+'h ':''}${m}m ${s}s`;
+    el.style.background=diff<3600000?'#fef3c7':'#dcfce7';
+    el.style.color=diff<3600000?'#92400e':'#166534';
+  });
+}
+setInterval(updateTimers,1000); updateTimers();
+
+// ===== VOICE MODAL =====
+function openVoiceModal(){document.getElementById('voiceModal').style.display='flex';}
+function closeVoiceModal(){document.getElementById('voiceModal').style.display='none';}
+
+function startVoiceRecording(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){alert('Voice not supported. Please use Chrome browser.');return;}
+  const rec=new SR(); rec.lang='en-IN'; rec.interimResults=true;
+  const status=document.getElementById('voiceStatus');
+  const transcript=document.getElementById('voiceTranscript');
+  const btn=document.getElementById('voiceStartBtn');
+  btn.textContent='🔴 Listening...'; btn.disabled=true;
+  status.textContent='🎙 Speak now — "50 plates of biryani"...';
+  status.className='voice-status listening';
+  rec.onresult=e=>{
+    const text=Array.from(e.results).map(r=>r[0].transcript).join('');
+    transcript.textContent='"'+text+'"';
+    if(e.results[0].isFinal) parseVoice(text);
+  };
+  rec.onerror=e=>{status.textContent='❌ Error: '+e.error;status.className='voice-status error';btn.disabled=false;btn.textContent='🎤 Try Again';};
+  rec.onend=()=>{btn.disabled=false;btn.textContent='🎤 Speak Again';status.className='voice-status done';};
+  rec.start();
+}
+
+function parseVoice(text){
+  const t=text.toLowerCase();
+  const numMatch=t.match(/(\d+)/);
+  const qty=numMatch?parseInt(numMatch[1]):0;
+  const units=['kg','litres','liters','packets','pieces','plates','portions'];
+  let unit='portions';
+  for(const u of units){if(t.includes(u)){unit=u==='liters'?'litres':u;break;}}
+  let food=t.replace(/\d+/g,'').replace(/(kg|litres?|packets?|pieces?|plates?|portions?)/g,'').replace(/(of|and|the)/g,'').trim();
+  food=food.replace(/\s+/g,' ').trim();
+  food=food.split(' ').map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
+  _voiceResult={food,qty,unit};
+  document.getElementById('voiceStatus').textContent=`✅ Parsed: ${qty} ${unit} of ${food}`;
+  document.getElementById('voiceStatus').className='voice-status done';
+  // auto-grab GPS too
+  captureDonationLocation();
+}
+
+async function applyVoiceToForm(){
+  if(_voiceResult.food){document.getElementById('voice_food_item').value=_voiceResult.food;}
+  if(_voiceResult.qty){document.getElementById('voice_quantity').value=_voiceResult.qty;}
+  if(_voiceResult.unit){const sel=document.getElementById('voice_unit');for(let o of sel.options){if(o.value===_voiceResult.unit)o.selected=true;}}
+}
+</script>
+{% endblock %}

@@ -1,0 +1,204 @@
+{% extends 'base.html' %}{% block content %}
+<div class="auth-page">
+  <div class="auth-card auth-card-wide">
+    <div class="auth-logo-wrap">
+      <img src="{{ url_for('static', filename='images/logo-icon.png') }}" class="auth-logo-img" alt="FoodBridge">
+    </div>
+    <h2 class="auth-title">Join FoodBridge</h2>
+    <p class="auth-sub">Create your account and start rescuing food</p>
+    <form method="post" action="{{ url_for('auth.register') }}" class="auth-form" onsubmit="return validateRegisterForm()">
+      <div class="form-row-2">
+        <div class="form-group">
+          <label>Full Name / Organisation</label>
+          <input name="name" placeholder="Your name or org name" required>
+        </div>
+        <div class="form-group">
+          <label>Role</label>
+          <select name="role" required>
+            <option value="">Select role...</option>
+            <option value="restaurant">🏪 Restaurant / Hotel</option>
+            <option value="ngo">🏢 NGO / Orphanage</option>
+            <option value="runner">🏃 Delivery Runner</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row-2">
+        <div class="form-group">
+          <label>Email</label>
+          <input name="email" type="email" placeholder="you@example.com" required>
+        </div>
+        <div class="form-group">
+          <label>Phone</label>
+          <input name="phone" type="tel" placeholder="+91 9999999999">
+        </div>
+      </div>
+      <div class="form-row-2">
+        <div class="form-group">
+          <label>Password</label>
+          <div class="pw-wrap">
+            <input name="password" id="password" type="password" placeholder="Min 6 characters" required>
+            <button type="button" class="pw-eye" onclick="togglePw('password',this)">👁</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Confirm Password</label>
+          <div class="pw-wrap">
+            <input name="confirm_password" id="confirm_password" type="password" placeholder="Repeat password" required>
+            <button type="button" class="pw-eye" onclick="togglePw('confirm_password',this)">👁</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section-label">📍 Full Address</div>
+      <div class="form-row-2">
+        <div class="form-group">
+          <label>Door No / Flat No <span class="req">*</span></label>
+          <input name="door_no" placeholder="e.g. 12-34 / Flat 5B" required>
+        </div>
+        <div class="form-group">
+          <label>Building / Society Name</label>
+          <input name="building_name" placeholder="e.g. Sai Residency (optional)">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Street / Road <span class="req">*</span></label>
+        <input name="street" placeholder="e.g. MG Road, Gandhi Nagar" required>
+      </div>
+      <div class="form-row-2">
+        <div class="form-group">
+          <label>Area / Locality <span class="req">*</span></label>
+          <input name="area" placeholder="e.g. Banjara Hills" required>
+        </div>
+        <div class="form-group">
+          <label>Landmark</label>
+          <input name="landmark" placeholder="e.g. Near Apollo Hospital">
+        </div>
+      </div>
+      <div class="form-row-3">
+        <div class="form-group">
+          <label>City <span class="req">*</span></label>
+          <input name="city" placeholder="e.g. Vijayawada" required>
+        </div>
+        <div class="form-group">
+          <label>State <span class="req">*</span></label>
+          <input name="state" placeholder="e.g. Andhra Pradesh" required>
+        </div>
+        <div class="form-group">
+          <label>Pincode <span class="req">*</span></label>
+          <input name="pincode" placeholder="e.g. 520001" required pattern="[0-9]{6}">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>GPS Location (Auto-fills address)</label>
+        <div class="gps-bar">
+          <input name="live_location_name" id="live_location_name" placeholder="Click GPS to auto-detect your full address →" style="flex:1">
+          <button type="button" class="btn-gps-big" onclick="captureRegistrationLocation()">
+            <span id="gpsSpinner" style="display:none">⏳</span> 📍 Detect Address
+          </button>
+        </div>
+        <input type="hidden" name="gps_latitude" id="gps_latitude">
+        <input type="hidden" name="gps_longitude" id="gps_longitude">
+        <input type="hidden" name="full_address_display" id="full_address_display">
+        <div id="gpsStatus" class="gps-pill" style="display:none"></div>
+        <div id="registerMap" class="leaflet-map" style="height:180px;margin-top:10px;display:none;border-radius:14px;overflow:hidden;"></div>
+      </div>
+
+      <button type="submit" class="btn-auth">🚀 Create Account</button>
+    </form>
+    <p class="auth-switch">Already have an account? <a href="{{ url_for('auth.login') }}">Login here</a></p>
+  </div>
+</div>
+
+<script>
+var _regMap = null, _regMarker = null;
+
+function togglePw(id, btn) {
+  const inp = document.getElementById(id);
+  if (inp.type === 'password') { inp.type = 'text'; btn.textContent = '🙈'; }
+  else { inp.type = 'password'; btn.textContent = '👁'; }
+}
+
+async function reverseGeocode(lat, lng) {
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`, {headers: {'Accept-Language': 'en'}});
+    const data = await res.json();
+    return data;
+  } catch(e) { return null; }
+}
+
+async function captureRegistrationLocation() {
+  if (!navigator.geolocation) { alert('GPS not supported'); return; }
+  const status = document.getElementById('gpsStatus');
+  const spinner = document.getElementById('gpsSpinner');
+  spinner.style.display = 'inline';
+  status.style.display = 'block';
+  status.textContent = '📡 Getting your location...';
+  status.style.background = '#fef3c7'; status.style.color = '#92400e';
+
+  navigator.geolocation.getCurrentPosition(async pos => {
+    const lat = pos.coords.latitude, lng = pos.coords.longitude;
+    document.getElementById('gps_latitude').value = lat;
+    document.getElementById('gps_longitude').value = lng;
+
+    status.textContent = '🔍 Fetching full address...';
+    const geo = await reverseGeocode(lat, lng);
+
+    if (geo && geo.address) {
+      const a = geo.address;
+      // Auto-fill address fields
+      const streetVal = [a.road, a.pedestrian].filter(Boolean).join(', ') || '';
+      const areaVal = a.suburb || a.neighbourhood || a.quarter || a.village || '';
+      const cityVal = a.city || a.town || a.county || '';
+      const stateVal = a.state || '';
+      const pincodeVal = a.postcode || '';
+      const displayAddr = geo.display_name || '';
+
+      if (streetVal) document.querySelector('input[name="street"]').value = streetVal;
+      if (areaVal) document.querySelector('input[name="area"]').value = areaVal;
+      if (cityVal) document.querySelector('input[name="city"]').value = cityVal;
+      if (stateVal) document.querySelector('input[name="state"]').value = stateVal;
+      if (pincodeVal) document.querySelector('input[name="pincode"]').value = pincodeVal;
+
+      const shortAddr = [areaVal, cityVal, stateVal, pincodeVal].filter(Boolean).join(', ');
+      document.getElementById('live_location_name').value = shortAddr || displayAddr;
+      document.getElementById('full_address_display').value = displayAddr;
+
+      status.textContent = '✅ Address detected: ' + shortAddr;
+      status.style.background = '#dcfce7'; status.style.color = '#166534';
+    } else {
+      document.getElementById('live_location_name').value = `GPS: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      status.textContent = '✅ GPS coordinates captured (address lookup unavailable)';
+      status.style.background = '#dcfce7'; status.style.color = '#166534';
+    }
+    spinner.style.display = 'none';
+
+    // Show map
+    const mapDiv = document.getElementById('registerMap');
+    mapDiv.style.display = 'block';
+    setTimeout(() => {
+      if (!_regMap) {
+        _regMap = L.map('registerMap', {zoomControl: true, scrollWheelZoom: false}).setView([lat, lng], 16);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution: '© OpenStreetMap'}).addTo(_regMap);
+        _regMarker = L.marker([lat, lng]).addTo(_regMap).bindPopup('Your location').openPopup();
+      } else {
+        _regMarker.setLatLng([lat, lng]); _regMap.setView([lat, lng], 16);
+      }
+      // Force map to recalculate size after display:block
+      setTimeout(() => _regMap.invalidateSize(), 200);
+    }, 50);
+  }, err => {
+    spinner.style.display = 'none';
+    status.textContent = '❌ GPS error: ' + err.message;
+    status.style.background = '#fee2e2'; status.style.color = '#dc2626';
+  }, {enableHighAccuracy: true, timeout: 12000});
+}
+
+function validateRegisterForm() {
+  const p = document.getElementById('password'), c = document.getElementById('confirm_password');
+  if (p.value !== c.value) { alert('Passwords do not match!'); c.focus(); return false; }
+  if (p.value.length < 6) { alert('Password must be at least 6 characters'); p.focus(); return false; }
+  return true;
+}
+</script>
+{% endblock %}

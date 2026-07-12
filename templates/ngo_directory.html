@@ -1,0 +1,55 @@
+{% extends 'base.html' %}{% block content %}
+
+<div class="dash-header">
+  <div>
+    <p class="eyebrow">Celebrate & Give</p>
+    <h1>🎁 Donate Food on Your Special Occasion</h1>
+    <p class="dash-sub">Birthday, wedding, anniversary or any celebration — sponsor a meal instead of (or along with) a cake. Browse registered NGOs/Organizations below and contact them directly to arrange your food donation.</p>
+  </div>
+</div>
+
+<form method="get" action="{{ url_for('ngo.directory') }}" class="ngo-dir-search">
+  <input type="text" name="q" value="{{ search_query }}" placeholder="🔍 Search NGO/Organization by name...">
+  <button type="submit" class="btn-sm-green">Search</button>
+  {% if search_query %}<a href="{{ url_for('ngo.directory') }}" class="btn-hero-secondary" style="padding:8px 18px;font-size:13px">Clear</a>{% endif %}
+</form>
+
+{% if ngos %}
+<div class="ngo-dir-grid">
+  {% for n in ngos %}
+  <div class="ngo-dir-card">
+    <div class="ngo-dir-card-head">
+      <span class="ngo-dir-avatar">🏢</span>
+      <div>
+        <h3>{{ n.name }}</h3>
+        <span class="role-pill role-ngo">NGO / Organization</span>
+      </div>
+    </div>
+
+    <div class="ngo-dir-details">
+      {% if n.phone %}<div class="ngo-dir-row">📞 <a href="tel:{{ n.phone }}">{{ n.phone }}</a></div>{% endif %}
+      {% if n.email %}<div class="ngo-dir-row">✉️ <a href="mailto:{{ n.email }}">{{ n.email }}</a></div>{% endif %}
+      {% if n.address %}<div class="ngo-dir-row">📍 {{ n.address }}</div>{% endif %}
+    </div>
+
+    {% if n.embed_src %}
+    <div class="ngo-dir-map">
+      <iframe src="{{ n.embed_src }}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
+    </div>
+    {% endif %}
+
+    <div class="ngo-dir-actions">
+      {% if n.maps_link %}<a href="{{ n.maps_link }}" target="_blank" rel="noopener" class="btn-sm-green">🗺️ View on Google Maps</a>{% endif %}
+      {% if n.phone %}<a href="tel:{{ n.phone }}" class="btn-hero-secondary" style="padding:8px 18px;font-size:13px">📞 Call</a>{% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <p>🏢 No NGOs/Organizations found{% if search_query %} for "{{ search_query }}"{% endif %}.</p>
+  <p style="font-weight:400;font-size:14px;margin-top:6px">Please check back soon as more organizations join FoodBridge.</p>
+</div>
+{% endif %}
+
+{% endblock %}

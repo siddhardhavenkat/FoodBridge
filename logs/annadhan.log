@@ -1,0 +1,15 @@
+2026-07-12 13:26:39,401 | INFO | app | logging_config:43 | Annadhan logging initialized
+2026-07-12 13:26:39,785 | INFO | app | db:27 | MongoDB initialized. Database object ready=True
+2026-07-12 13:26:39,785 | INFO | app | email_service:16 | ✅ Email ready — Gmail: siddhardhavenkat@gmail.com
+2026-07-12 13:26:40,382 | INFO | app | logging_config:43 | Annadhan logging initialized
+2026-07-12 13:26:40,711 | INFO | app | db:27 | MongoDB initialized. Database object ready=True
+2026-07-12 13:26:40,711 | INFO | app | email_service:16 | ✅ Email ready — Gmail: siddhardhavenkat@gmail.com
+2026-07-12 13:26:40,788 | WARNING | werkzeug | _internal:97 |  * Debugger is active!
+2026-07-12 13:33:21,522 | INFO | app | auth:153 | New user registered: siddhardhavenkat0605@gmail.com role=ngo
+2026-07-12 17:01:23,299 | INFO | app | logging_config:43 | Annadhan logging initialized
+2026-07-12 17:01:23,724 | INFO | app | db:27 | MongoDB initialized. Database object ready=True
+2026-07-12 17:01:23,724 | INFO | app | email_service:16 | ✅ Email ready — Gmail: siddhardhavenkat@gmail.com
+2026-07-12 17:01:24,373 | INFO | app | logging_config:43 | Annadhan logging initialized
+2026-07-12 17:01:24,714 | INFO | app | db:27 | MongoDB initialized. Database object ready=True
+2026-07-12 17:01:24,715 | INFO | app | email_service:16 | ✅ Email ready — Gmail: siddhardhavenkat@gmail.com
+2026-07-12 17:01:24,789 | WARNING | werkzeug | _internal:97 |  * Debugger is active!

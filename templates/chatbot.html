@@ -1,0 +1,22 @@
+<button id="chatbotToggle" onclick="toggleBot()" title="FoodBridge Assistant">
+  <img src="{{ url_for('static', filename='images/assistant-avatar.png') }}" alt="FoodBridge Assistant">
+</button>
+<div id="botPanel">
+  <div class="bot-header">
+    <img src="{{ url_for('static', filename='images/assistant-avatar.png') }}" class="bot-header-avatar" alt="Assistant">
+    <div>
+      <div class="bot-header-title">FoodBridge Assistant</div>
+      <div class="bot-header-sub">🟢 Online — ask anything, anytime</div>
+    </div>
+  </div>
+  <div id="botMessages">
+    <div class="msg bot">Hi! I'm your FoodBridge live assistant. Ask me about a restaurant, NGO, or runner's name/phone/address, what food is available near you, how many runners are free, or check an order using its Order ID (e.g. FB-7K2R9Q) — no login needed.</div>
+  </div>
+  <div class="bot-input-row">
+    <input id="botInput" placeholder="Ask me anything, or paste an Order ID..." type="text">
+    <button class="bot-send" onclick="askBot()">Send</button>
+  </div>
+</div>
+<audio id="botClickSound" preload="auto">
+  <source src="{{ url_for('static', filename='sounds/assistant-ding.wav') }}" type="audio/wav">
+</audio>
